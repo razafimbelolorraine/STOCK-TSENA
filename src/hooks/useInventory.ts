@@ -72,6 +72,7 @@ export function useInventory() {
       productId,
       productName: product.name,
       quantity,
+      unit: product.unit,
       priceAtSale: product.price,
       totalAmount,
       date: new Date().toISOString(),
@@ -80,7 +81,7 @@ export function useInventory() {
 
     setSales(prev => [...prev, newSale]);
     updateProduct(productId, { stock: product.stock - quantity });
-    addActivity('SALE', `Vente réalisée : ${quantity}x ${product.name} (${totalAmount} Ar)`);
+    addActivity('SALE', `Vente réalisée : ${quantity}${product.unit} ${product.name} (${totalAmount} Ar)`);
     return true;
   };
 
@@ -96,7 +97,7 @@ export function useInventory() {
       updateProduct(sale.productId, { stock: product.stock + sale.quantity });
     }
 
-    addActivity('CANCEL_SALE', `Vente annulée : ${sale.quantity}x ${sale.productName}`);
+    addActivity('CANCEL_SALE', `Vente annulée : ${sale.quantity}${sale.unit} ${sale.productName}`);
   };
 
   const getWeeklyStats = () => {
@@ -114,9 +115,82 @@ export function useInventory() {
     return stats;
   };
 
+  const getMonthlyStats = () => {
+    const months: Record<string, { label: string, revenue: number, volume: number }> = {};
+    sales.filter(s => !s.cancelled).forEach(s => {
+      const date = parseISO(s.date);
+      const key = `${date.getFullYear()}-${date.getMonth()}`;
+      if (!months[key]) {
+        months[key] = { 
+          label: date.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }),
+          revenue: 0,
+          volume: 0
+        };
+      }
+      months[key].revenue += s.totalAmount;
+      months[key].volume += s.quantity;
+    });
+    return Object.values(months).slice(-12);
+  };
+
+  const getTopCategories = () => {
+    const categories: Record<string, number> = {};
+    sales.filter(s => !s.cancelled).forEach(s => {
+      const product = products.find(p => p.id === s.productId);
+      const cat = product?.category || 'autre';
+      categories[cat] = (categories[cat] || 0) + s.totalAmount;
+    });
+    return Object.entries(categories)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  };
+
+  const getTopProducts = () => {
+    const pStats: Record<string, { name: string, quantity: number, unit: string }> = {};
+    sales.filter(s => !s.cancelled).forEach(s => {
+      if (!pStats[s.productId]) {
+        pStats[s.productId] = { name: s.productName, quantity: 0, unit: s.unit };
+      }
+      pStats[s.productId].quantity += s.quantity;
+    });
+    return Object.values(pStats)
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 5);
+  };
+
+  const exportToExcel = (period: 'day' | 'month' | 'year') => {
+    const columnHeaders = "Date,Produit,Quantite,Unite,Prix Unitaire,Total,Statut";
+    const now = new Date();
+    
+    constfilteredSales = sales.filter(s => {
+      const sDate = parseISO(s.date);
+      if (period === 'day') return isSameDay(sDate, now);
+      if (period === 'month') return sDate.getMonth() === now.getMonth() && sDate.getFullYear() === now.getFullYear();
+      if (period === 'year') return sDate.getFullYear() === now.getFullYear();
+      return true;
+    });
+
+    const rows = filteredSales.map(s => [
+      new Date(s.date).toLocaleString(),
+      s.productName,
+      s.quantity,
+      s.unit,
+      s.priceAtSale,
+      s.totalAmount,
+      s.cancelled ? 'Annulé' : 'Validé'
+    ].join(','));
+
+    const csvContent = "data:text/csv;charset=utf-8," + columnHeaders + "\n" + rows.join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `export_ventes_${period}_${now.toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const getRestockList = () => {
-    // Calculer la moyenne des ventes hebdomadaires par produit
-    // Pour simplifier, on regarde les ventes des 7 derniers jours
     const lastWeek = subDays(new Date(), 7);
     const weeklySalesMap: Record<string, number> = {};
 
@@ -129,11 +203,11 @@ export function useInventory() {
     return products
       .map(p => {
         const avgWeeklySales = weeklySalesMap[p.id] || 0;
-        const suggestion = Math.max(0, (avgWeeklySales * 1.2) - p.stock); // Suggérer 20% de plus que la vente hebdo
+        const suggestion = Math.max(0, (avgWeeklySales * 1.2) - p.stock); 
         return {
           ...p,
           avgWeeklySales,
-          suggestion: Math.ceil(suggestion),
+          suggestion: p.unit === 'u' ? Math.ceil(suggestion) : Number(suggestion.toFixed(2)),
         };
       })
       .filter(p => p.suggestion > 0 || p.stock <= p.minStock)
@@ -150,6 +224,10 @@ export function useInventory() {
     recordSale,
     cancelSale,
     getWeeklyStats,
+    getMonthlyStats,
+    getTopCategories,
+    getTopProducts,
+    exportToExcel,
     getRestockList,
   };
 }

@@ -19,7 +19,10 @@ import {
   RotateCcw,
   RefreshCw,
   Box,
-  Banknote
+  Banknote,
+  Download,
+  Calendar,
+  Archive
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useInventory } from './hooks/useInventory';
@@ -42,6 +45,7 @@ export default function App() {
   const [activeView, setActiveView] = useState<View>('dashboard');
   const [showProductModal, setShowProductModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [inventoryFilter, setInventoryFilter] = useState<'all' | 'low'>('all');
   
   const { 
     products, 
@@ -53,10 +57,17 @@ export default function App() {
     recordSale, 
     cancelSale,
     getWeeklyStats,
+    getMonthlyStats,
+    getTopCategories,
+    getTopProducts,
+    exportToExcel,
     getRestockList
   } = useInventory();
 
   const stats = getWeeklyStats();
+  const monthlyStats = getMonthlyStats();
+  const topCategories = getTopCategories();
+  const topProducts = getTopProducts();
   const restockList = getRestockList();
 
   const todayRevenue = stats[stats.length - 1].revenue;
@@ -111,13 +122,19 @@ export default function App() {
         </nav>
 
         <div className="p-4 border-t border-gray-100">
-          <div className="p-4 bg-gray-50 rounded-xl">
-            <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-2">Statut Stock</p>
+          <button 
+            onClick={() => {
+              setActiveView('inventory');
+              setInventoryFilter('low');
+            }}
+            className="w-full text-left p-4 bg-gray-50 rounded-xl hover:bg-red-50 transition-colors group"
+          >
+            <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-2 group-hover:text-red-400">Statut Stock</p>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold">{lowStockCount} alertes</span>
+              <span className="text-sm font-semibold group-hover:text-red-700">{lowStockCount} alertes</span>
               {lowStockCount > 0 && <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
             </div>
-          </div>
+          </button>
         </div>
       </aside>
 
@@ -136,6 +153,22 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 mr-4">
+              <button 
+                onClick={() => exportToExcel('day')}
+                className="p-2 text-gray-500 hover:text-black hover:bg-white rounded-lg transition-all flex items-center gap-2 text-xs font-bold"
+                title="Exporter Jour"
+              >
+                <Download size={14} /> Jour
+              </button>
+              <button 
+                onClick={() => exportToExcel('month')}
+                className="p-2 text-gray-500 hover:text-black hover:bg-white rounded-lg transition-all flex items-center gap-2 text-xs font-bold"
+                title="Exporter Mois"
+              >
+                <Download size={14} /> Mois
+              </button>
+            </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input 
@@ -186,34 +219,85 @@ export default function App() {
                 />
               </div>
 
-              {/* Chart Section */}
-              <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-                <h3 className="text-lg font-bold mb-6 italic-serif">Performance des 7 derniers jours</h3>
-                <div className="h-[350px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={stats}>
-                      <defs>
-                        <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F1F1" />
-                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#888'}} />
-                      <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#888'}} />
-                      <Tooltip 
-                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} 
+              {/* Charts Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+                  <h3 className="text-lg font-bold mb-6 italic-serif">Performance des 7 derniers jours</h3>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={stats}>
+                        <defs>
+                          <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F1F1" />
+                        <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#888'}} />
+                        <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#888'}} />
+                        <Tooltip 
+                          contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} 
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="revenue" 
+                          stroke="#10b981" 
+                          strokeWidth={4}
+                          fillOpacity={1} 
+                          fill="url(#colorRev)" 
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+                  <h3 className="text-lg font-bold mb-6 italic-serif">Volume de vente mensuel</h3>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={monthlyStats}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F1F1" />
+                        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#888'}} />
+                        <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#888'}} />
+                        <Tooltip 
+                          contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} 
+                        />
+                        <Bar dataKey="volume" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+                  <h3 className="text-lg font-bold mb-6 italic-serif">Top 5 Produits vendus</h3>
+                  <div className="space-y-4">
+                    {topProducts.map((p, i) => (
+                      <div key={i} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                        <div className="flex items-center gap-3">
+                          <span className="w-8 h-8 flex items-center justify-center bg-black text-white rounded-full text-xs font-bold">{i+1}</span>
+                          <div>
+                            <p className="font-bold text-sm">{p.name}</p>
+                            <p className="text-xs text-gray-400">Total: {p.quantity} {p.unit}</p>
+                          </div>
+                        </div>
+                        <TrendingUp size={16} className="text-emerald-500" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+                  <h3 className="text-lg font-bold mb-6 italic-serif">Ventes par Catégorie</h3>
+                  <div className="space-y-6">
+                    {topCategories.map((c, i) => (
+                      <CategoryBar 
+                        key={i} 
+                        label={c.name} 
+                        value={Math.round((c.value / (topCategories.reduce((acc, curr) => acc + curr.value, 0) || 1)) * 100)} 
+                        color={i === 0 ? "bg-emerald-500" : i === 1 ? "bg-blue-500" : "bg-orange-500"} 
                       />
-                      <Area 
-                        type="monotone" 
-                        dataKey="revenue" 
-                        stroke="#10b981" 
-                        strokeWidth={4}
-                        fillOpacity={1} 
-                        fill="url(#colorRev)" 
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                    ))}
+                  </div>
                 </div>
               </div>
             </>
@@ -221,6 +305,27 @@ export default function App() {
 
           {activeView === 'inventory' && (
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+               <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setInventoryFilter('all')}
+                    className={cn("px-3 py-1 rounded-full text-xs font-bold transition-all", inventoryFilter === 'all' ? "bg-black text-white" : "bg-gray-100 text-gray-500")}
+                  >
+                    Tout ({products.length})
+                  </button>
+                  <button 
+                    onClick={() => setInventoryFilter('low')}
+                    className={cn("px-3 py-1 rounded-full text-xs font-bold transition-all", inventoryFilter === 'low' ? "bg-red-500 text-white" : "bg-gray-100 text-gray-500")}
+                  >
+                    Rupture / Alerte ({lowStockCount})
+                  </button>
+                </div>
+                {inventoryFilter === 'low' && (
+                  <button onClick={() => setInventoryFilter('all')} className="text-xs text-gray-400 hover:text-black flex items-center gap-1">
+                    <X size={12} /> Effacer le filtre
+                  </button>
+                )}
+              </div>
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50/50">
@@ -233,7 +338,10 @@ export default function App() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())).map(product => (
+                  {products
+                    .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                    .filter(p => inventoryFilter === 'all' ? true : p.stock <= p.minStock)
+                    .map(product => (
                     <tr key={product.id} className="hover:bg-gray-50 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="font-semibold text-sm">{product.name}</div>
@@ -242,13 +350,13 @@ export default function App() {
                       <td className="px-6 py-4">
                         <span className="text-xs px-2 py-1 bg-gray-100 rounded-full font-medium">{product.category}</span>
                       </td>
-                      <td className="px-6 py-4 text-sm font-mono">{formatCurrency(product.price)}</td>
+                      <td className="px-6 py-4 text-sm font-mono">{formatCurrency(product.price)} / {product.unit}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <span className={cn(
                             "font-bold text-sm",
                             product.stock <= product.minStock ? "text-red-600" : "text-gray-900"
-                          )}>{product.stock}</span>
+                          )}>{product.stock} {product.unit}</span>
                           <span className="text-xs text-gray-400">/ min {product.minStock}</span>
                         </div>
                       </td>
@@ -271,8 +379,8 @@ export default function App() {
                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button 
                             onClick={() => {
-                              const qty = window.prompt(`Combien de ${product.name} voulez-vous vendre ?`, "1");
-                              if (qty && !isNaN(parseInt(qty))) recordSale(product.id, parseInt(qty));
+                              const qty = window.prompt(`Combien de ${product.name} (${product.unit}) voulez-vous vendre ?`, "1");
+                              if (qty && !isNaN(parseFloat(qty))) recordSale(product.id, parseFloat(qty));
                             }}
                             className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                             title="Vendre"
@@ -307,7 +415,10 @@ export default function App() {
               {/* Sales List */}
               <div className="lg:col-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                  <h3 className="font-bold text-lg">Dernières Ventes</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-lg">Dernières Ventes</h3>
+                    <span className="text-xs bg-gray-100 px-2 py-1 rounded-lg text-gray-500 font-bold">{sales.length} ventes</span>
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
@@ -328,7 +439,7 @@ export default function App() {
                             {new Date(sale.date).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                           </td>
                           <td className="px-6 py-4 font-semibold">{sale.productName}</td>
-                          <td className="px-6 py-4 font-mono">{sale.quantity}</td>
+                          <td className="px-6 py-4 font-mono">{sale.quantity}{sale.unit}</td>
                           <td className="px-6 py-4 font-bold">{formatCurrency(sale.totalAmount)}</td>
                           <td className="px-6 py-4">
                             {sale.cancelled ? (
@@ -417,7 +528,7 @@ export default function App() {
                     <div className="pt-4 border-t border-gray-100">
                       <div className="flex items-center justify-between text-blue-700">
                         <span className="text-xs font-bold uppercase tracking-wider">Quantité Suggérée</span>
-                        <span className="text-3xl font-black">+{item.suggestion}</span>
+                        <span className="text-3xl font-black">+{item.suggestion} {item.unit}</span>
                       </div>
                       <p className="text-[10px] text-blue-400 mt-1 italic">Basé sur la moyenne hebdomadaire + 20% de marge de sécurité.</p>
                       <button 
@@ -444,10 +555,26 @@ export default function App() {
 
           {activeView === 'history' && (
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-               <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-                <h3 className="font-bold">Journal d'Activité</h3>
+               <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Archive className="text-gray-400" size={18} />
+                  <h3 className="font-bold italic-serif">Archives par année</h3>
+                </div>
+                <div className="flex gap-2">
+                  {[2024, 2025, 2026].map(year => (
+                    <button 
+                      key={year}
+                      className={cn(
+                        "px-3 py-1 rounded-full text-xs font-bold transition-all", 
+                        new Date().getFullYear() === year ? "bg-black text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                      )}
+                    >
+                      {year}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-gray-50 max-h-[600px] overflow-y-auto">
                 {activities.map(activity => (
                   <div key={activity.id} className="p-6 hover:bg-gray-50 transition-colors flex items-center gap-6">
                     <div className={cn(
@@ -511,22 +638,45 @@ export default function App() {
                     const formData = new FormData(e.currentTarget);
                     addProduct({
                       name: formData.get('name') as string,
-                      category: formData.get('category') as string,
+                      category: formData.get('category') as any,
+                      unit: formData.get('unit') as any,
                       price: parseFloat(formData.get('price') as string),
-                      stock: parseInt(formData.get('stock') as string),
-                      minStock: parseInt(formData.get('minStock') as string),
+                      stock: parseFloat(formData.get('stock') as string),
+                      minStock: parseFloat(formData.get('minStock') as string),
                     });
                     setShowProductModal(false);
                   }}
                   className="space-y-5"
                 >
-                  <InputGroup label="Nom du produit" name="name" placeholder="ex: iPhone 15 Pro" required />
-                  <InputGroup label="Catégorie" name="category" placeholder="ex: Électronique" required />
+                  <InputGroup label="Nom du produit" name="name" placeholder="ex: Riz Long Grain" required />
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-gray-500 pl-1">Catégorie</label>
+                      <select name="category" className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-black focus:bg-white transition-all text-sm font-medium">
+                        <option value="épicerie">Épicerie</option>
+                        <option value="alimentaire">Alimentaire</option>
+                        <option value="non alimentaire">Non alimentaire</option>
+                        <option value="autre">Autre</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-gray-500 pl-1">Unité</label>
+                      <select name="unit" className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-black focus:bg-white transition-all text-sm font-medium">
+                        <option value="u">Pièce (u)</option>
+                        <option value="kg">Kilo (kg)</option>
+                        <option value="L">Litre (L)</option>
+                        <option value="g">Gramme (g)</option>
+                        <option value="ml">Millilitre (ml)</option>
+                      </select>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <InputGroup label="Prix (Ar)" name="price" type="number" step="1" placeholder="2500" required />
-                    <InputGroup label="Stock initial" name="stock" type="number" placeholder="10" required />
+                    <InputGroup label="Stock initial" name="stock" type="number" step="0.001" placeholder="10" required />
                   </div>
-                  <InputGroup label="Alerte Stock Minimal" name="minStock" type="number" placeholder="5" required />
+                  <InputGroup label="Alerte Stock Minimal" name="minStock" type="number" step="0.001" placeholder="5" required />
                   
                   <div className="pt-6">
                     <button className="w-full bg-black text-white font-bold py-4 rounded-2xl hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl active:scale-[0.98]">

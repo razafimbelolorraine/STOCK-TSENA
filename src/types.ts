@@ -3,10 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export type Unit = 'u' | 'kg' | 'L' | 'g' | 'ml';
+export type Category = 'épicerie' | 'alimentaire' | 'non alimentaire' | 'autre';
+
 export interface Product {
   id: string;
   name: string;
-  category: string;
+  category: Category;
+  unit: Unit;
   price: number;
   stock: number;
   minStock: number;
@@ -18,6 +22,7 @@ export interface Sale {
   productId: string;
   productName: string;
   quantity: number;
+  unit: Unit;
   priceAtSale: number;
   totalAmount: number;
   date: string;
