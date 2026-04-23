@@ -9,6 +9,9 @@ import {
   Package, 
   ShoppingCart, 
   History, 
+  Menu,
+  ChevronLeft,
+  ChevronRight,
   Plus, 
   TrendingDown, 
   Search, 
@@ -47,6 +50,10 @@ export default function App() {
   const [showProductModal, setShowProductModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [inventoryFilter, setInventoryFilter] = useState<'all' | 'low'>('all');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  
+  const [saleProductId, setSaleProductId] = useState('');
+  const [saleQuantity, setSaleQuantity] = useState('1');
   
   const { 
     products, 
@@ -84,14 +91,33 @@ export default function App() {
   return (
     <div className="min-h-screen bg-brand-bg flex text-slate-800 font-sans antialiased h-screen overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-60 bg-brand-sidebar flex flex-col h-full border-r border-brand-border shrink-0">
-        <div className="p-6">
-          <div className="flex items-center gap-2 font-black text-xl tracking-tighter text-white">
-            <div className="w-8 h-8 bg-brand-primary rounded-lg flex items-center justify-center shadow-lg shadow-brand-primary/20">
-              <Box className="text-white w-5 h-5" />
+      <aside className={cn(
+        "bg-brand-sidebar flex flex-col h-full border-r border-brand-border shrink-0 transition-all duration-300 ease-in-out",
+        isSidebarCollapsed ? "w-20" : "w-60"
+      )}>
+        <div className={cn("p-6 flex items-center", isSidebarCollapsed ? "justify-center" : "justify-between")}>
+          {!isSidebarCollapsed && (
+            <div className="flex items-center gap-2 font-black text-xl tracking-tighter text-white whitespace-nowrap overflow-hidden">
+              <div className="w-8 h-8 bg-brand-primary rounded-lg flex items-center justify-center shadow-lg shadow-brand-primary/20 shrink-0">
+                <Box className="text-white w-5 h-5" />
+              </div>
+              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }}>STOCK<span className="text-brand-primary">PRO</span></motion.span>
             </div>
-            <span>STOCK<span className="text-brand-primary">PRO</span></span>
-          </div>
+          )}
+          {isSidebarCollapsed && (
+            <div className="w-10 h-10 bg-brand-primary rounded-lg flex items-center justify-center shadow-lg shadow-brand-primary/20 shrink-0">
+              <Box className="text-white w-6 h-6" />
+            </div>
+          )}
+        </div>
+
+        <div className="px-3 mb-2">
+          <button 
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="w-full flex items-center justify-center p-2 rounded-lg text-brand-text-nav hover:bg-slate-800 transition-colors border border-slate-800/50"
+          >
+            {isSidebarCollapsed ? <ChevronRight size={18} /> : <div className="flex items-center gap-2 w-full px-1"><ChevronLeft size={16} /><span className="text-[10px] font-bold uppercase tracking-widest">Réduire</span></div>}
+          </button>
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
@@ -100,18 +126,21 @@ export default function App() {
             label="Tableau de bord" 
             active={activeView === 'dashboard'} 
             onClick={() => setActiveView('dashboard')} 
+            isCollapsed={isSidebarCollapsed}
           />
           <NavItem 
             icon={<Package size={18} />} 
             label="Inventaire" 
             active={activeView === 'inventory'} 
             onClick={() => setActiveView('inventory')} 
+            isCollapsed={isSidebarCollapsed}
           />
           <NavItem 
             icon={<ShoppingCart size={18} />} 
             label="Ventes" 
             active={activeView === 'sales'} 
             onClick={() => setActiveView('sales')} 
+            isCollapsed={isSidebarCollapsed}
           />
           <NavItem 
             icon={<RefreshCw size={18} />} 
@@ -119,33 +148,55 @@ export default function App() {
             active={activeView === 'restock'} 
             onClick={() => setActiveView('restock')} 
             badge={restockList.length > 0 ? restockList.length : undefined}
+            isCollapsed={isSidebarCollapsed}
           />
           <NavItem 
             icon={<History size={18} />} 
             label="Historique" 
             active={activeView === 'history'} 
             onClick={() => setActiveView('history')} 
+            isCollapsed={isSidebarCollapsed}
           />
         </nav>
 
-        <div className="p-4 border-t border-slate-800 mt-auto">
-          <button 
-            onClick={() => {
-              setActiveView('inventory');
-              setInventoryFilter('low');
-            }}
-            className="w-full text-left p-4 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-all group"
-          >
-            <p className="text-[10px] text-brand-text-nav font-bold uppercase tracking-widest mb-2 group-hover:text-white">Statut Stock</p>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-slate-300 group-hover:text-white">{lowStockCount} alertes</span>
-              {lowStockCount > 0 && <span className="w-2 h-2 bg-brand-danger rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]" />}
+        <div className={cn("p-4 border-t border-slate-800 mt-auto", isSidebarCollapsed && "flex flex-col items-center")}>
+          {!isSidebarCollapsed ? (
+            <button 
+              onClick={() => {
+                setActiveView('inventory');
+                setInventoryFilter('low');
+              }}
+              className="w-full text-left p-4 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-all group"
+            >
+              <p className="text-[10px] text-brand-text-nav font-bold uppercase tracking-widest mb-2 group-hover:text-white">Statut Stock</p>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-slate-300 group-hover:text-white">{lowStockCount} alertes</span>
+                {lowStockCount > 0 && <span className="w-2 h-2 bg-brand-danger rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]" />}
+              </div>
+            </button>
+          ) : (
+            <div className="relative">
+              <button 
+                onClick={() => {
+                  setActiveView('inventory');
+                  setInventoryFilter('low');
+                }}
+                className={cn(
+                  "p-3 rounded-xl transition-all relative",
+                  lowStockCount > 0 ? "bg-brand-danger/20 text-brand-danger" : "bg-slate-900 text-slate-500"
+                )}
+              >
+                <AlertCircle size={20} />
+                {lowStockCount > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-brand-danger rounded-full border-2 border-brand-sidebar" />}
+              </button>
             </div>
-          </button>
-          <div className="mt-4 px-2">
-            <p className="text-[10px] text-brand-text-nav font-bold uppercase tracking-widest leading-tight">Utilisateur</p>
-            <p className="text-sm text-slate-300 font-medium truncate">Admin Épicerie</p>
-          </div>
+          )}
+          {!isSidebarCollapsed && (
+            <div className="mt-4 px-2">
+              <p className="text-[10px] text-brand-text-nav font-bold uppercase tracking-widest leading-tight">Utilisateur</p>
+              <p className="text-sm text-slate-300 font-medium truncate">Admin Épicerie</p>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -504,13 +555,82 @@ export default function App() {
           {activeView === 'sales' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full min-h-0">
               {/* Sales List */}
-              <div className="lg:col-span-2 bg-white rounded-xl border border-brand-border shadow-sm overflow-hidden flex flex-col min-h-0">
-                <div className="px-6 py-4 border-b border-brand-border flex justify-between items-center bg-slate-50/20 shrink-0">
-                  <div className="flex items-center gap-2 font-sans">
-                    <h3 className="font-bold text-sm text-slate-800">Journal des Ventes</h3>
-                    <span className="text-[9px] bg-slate-100 px-2 py-0.5 rounded-md text-brand-text-muted font-black tracking-widest border border-slate-200/50 uppercase">{sales.length} VENTES</span>
+              <div className="lg:col-span-2 flex flex-col min-h-0 gap-6">
+                {/* Sale Input Form */}
+                <div className="bg-white p-6 rounded-xl border border-brand-border shadow-sm shrink-0">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 bg-brand-primary/10 text-brand-primary rounded-lg flex items-center justify-center">
+                      <Plus size={18} />
+                    </div>
+                    <h3 className="font-bold text-sm text-slate-800 tracking-tight italic-serif">Enregistrer une Vente</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div className="md:col-span-2 space-y-1.5">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-brand-text-muted pl-1">Produit</label>
+                      <select 
+                        className="w-full px-4 py-2 bg-slate-50 border border-brand-border rounded-lg outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all text-xs font-bold text-slate-700"
+                        value={saleProductId}
+                        onChange={(e) => setSaleProductId(e.target.value)}
+                      >
+                        <option value="">Sélectionner un produit...</option>
+                        {products
+                          .filter(p => p.stock > 0)
+                          .map(p => (
+                            <option key={p.id} value={p.id}>{p.name} ({p.stock} {p.unit} dispos)</option>
+                          ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-brand-text-muted pl-1">Quantité</label>
+                      <input 
+                        type="number" 
+                        step="0.001"
+                        min="0"
+                        className="w-full px-4 py-2 bg-slate-50 border border-brand-border rounded-lg outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all text-xs font-bold text-slate-700"
+                        placeholder="1"
+                        value={saleQuantity}
+                        onChange={(e) => setSaleQuantity(e.target.value)}
+                      />
+                    </div>
+                    <button 
+                      onClick={() => {
+                        if (!saleProductId) {
+                          alert("Veuillez sélectionner un produit.");
+                          return;
+                        }
+                        const qty = parseFloat(saleQuantity);
+                        if (isNaN(qty) || qty <= 0) {
+                          alert("Veuillez saisir une quantité valide.");
+                          return;
+                        }
+
+                        const product = products.find(p => p.id === saleProductId);
+                        if (product && product.stock < qty) {
+                          alert(`Stock insuffisant pour ${product.name}. Stock actuel: ${product.stock} ${product.unit}`);
+                          return;
+                        }
+
+                        const success = recordSale(saleProductId, qty);
+                        if (success) {
+                          setSaleProductId('');
+                          setSaleQuantity('1');
+                        }
+                      }}
+                      className="bg-brand-primary text-white py-2 px-4 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2"
+                    >
+                      <ShoppingCart size={14} /> Valider
+                    </button>
                   </div>
                 </div>
+
+                <div className="bg-white rounded-xl border border-brand-border shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
+                  <div className="px-6 py-4 border-b border-brand-border flex justify-between items-center bg-slate-50/20 shrink-0">
+                    <div className="flex items-center gap-2 font-sans">
+                      <h3 className="font-bold text-sm text-slate-800">Journal des Ventes</h3>
+                      <span className="text-[9px] bg-slate-100 px-2 py-0.5 rounded-md text-brand-text-muted font-black tracking-widest border border-slate-200/50 uppercase">{sales.length} VENTES</span>
+                    </div>
+                  </div>
                 <div className="flex-1 overflow-auto scroll-area">
                   <table className="w-full text-left border-collapse">
                     <thead className="bg-white sticky top-0 z-10 shadow-sm">
@@ -554,8 +674,9 @@ export default function App() {
                   </table>
                 </div>
               </div>
+            </div>
 
-              {/* Sales Stats Sidebar */}
+            {/* Sales Stats Sidebar */}
               <div className="space-y-6 flex flex-col shrink-0">
                 <div className="bg-brand-sidebar text-white p-6 rounded-xl shadow-xl relative overflow-hidden shrink-0 border border-slate-700">
                   <div className="relative z-10">
@@ -820,23 +941,26 @@ export default function App() {
   );
 }
 
-function NavItem({ icon, label, active, onClick, badge }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void, badge?: number }) {
+function NavItem({ icon, label, active, onClick, badge, isCollapsed }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void, badge?: number, isCollapsed?: boolean }) {
   return (
     <button 
       onClick={onClick}
       className={cn(
-        "w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 group",
-        active ? "bg-slate-800 text-white shadow-sm" : "text-brand-text-nav hover:bg-slate-800/30 hover:text-slate-200"
+        "w-full flex items-center rounded-lg transition-all duration-200 group relative",
+        active ? "bg-slate-800 text-white shadow-sm" : "text-brand-text-nav hover:bg-slate-800/30 hover:text-slate-200",
+        isCollapsed ? "justify-center px-0 py-3" : "justify-between px-3 py-2"
       )}
+      title={isCollapsed ? label : ""}
     >
-      <div className="flex items-center gap-3">
+      <div className={cn("flex items-center gap-3", isCollapsed && "gap-0")}>
         <span className={cn("transition-transform duration-200", active ? "scale-110" : "group-hover:scale-110 text-brand-text-nav")}>{icon}</span>
-        <span className="font-medium text-xs tracking-tight">{label}</span>
+        {!isCollapsed && <span className="font-medium text-xs tracking-tight">{label}</span>}
       </div>
       {badge !== undefined && (
         <span className={cn(
-          "text-[10px] font-black px-1.5 py-0.5 rounded-full",
-          active ? "bg-brand-primary text-white" : "bg-brand-danger text-white"
+          "text-[10px] font-black px-1.5 py-0.5 rounded-full shrink-0",
+          active ? "bg-brand-primary text-white" : "bg-brand-danger text-white",
+          isCollapsed ? "absolute -top-1 -right-1 scale-75" : ""
         )}>
           {badge}
         </span>
