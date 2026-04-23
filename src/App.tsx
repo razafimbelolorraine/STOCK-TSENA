@@ -16,6 +16,7 @@ import {
   AlertCircle,
   TrendingUp,
   X,
+  Clock,
   RotateCcw,
   RefreshCw,
   Box,
@@ -61,7 +62,11 @@ export default function App() {
     getTopCategories,
     getTopProducts,
     exportToExcel,
-    getRestockList
+    exportInventoryCsv,
+    exportActivitiesCsv,
+    getRestockList,
+    restockProduct,
+    getMonthlyRestockExpenses
   } = useInventory();
 
   const stats = getWeeklyStats();
@@ -69,112 +74,164 @@ export default function App() {
   const topCategories = getTopCategories();
   const topProducts = getTopProducts();
   const restockList = getRestockList();
+  const monthlyExpenses = getMonthlyRestockExpenses();
 
   const todayRevenue = stats[stats.length - 1].revenue;
+  const todayMargin = stats[stats.length - 1].margin;
   const todaySalesCount = stats[stats.length - 1].salesCount;
   const lowStockCount = products.filter(p => p.stock <= p.minStock).length;
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] flex text-[#1D1D1F] font-sans">
+    <div className="min-h-screen bg-brand-bg flex text-slate-800 font-sans antialiased h-screen overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full">
-        <div className="p-6 border-bottom border-gray-100">
-          <div className="flex items-center gap-2 font-bold text-xl tracking-tight">
-            <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
+      <aside className="w-60 bg-brand-sidebar flex flex-col h-full border-r border-brand-border shrink-0">
+        <div className="p-6">
+          <div className="flex items-center gap-2 font-black text-xl tracking-tighter text-white">
+            <div className="w-8 h-8 bg-brand-primary rounded-lg flex items-center justify-center shadow-lg shadow-brand-primary/20">
               <Box className="text-white w-5 h-5" />
             </div>
-            <span>StockPro</span>
+            <span>STOCK<span className="text-brand-primary">PRO</span></span>
           </div>
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-2">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           <NavItem 
-            icon={<LayoutDashboard size={20} />} 
+            icon={<LayoutDashboard size={18} />} 
             label="Tableau de bord" 
             active={activeView === 'dashboard'} 
             onClick={() => setActiveView('dashboard')} 
           />
           <NavItem 
-            icon={<Package size={20} />} 
+            icon={<Package size={18} />} 
             label="Inventaire" 
             active={activeView === 'inventory'} 
             onClick={() => setActiveView('inventory')} 
           />
           <NavItem 
-            icon={<ShoppingCart size={20} />} 
+            icon={<ShoppingCart size={18} />} 
             label="Ventes" 
             active={activeView === 'sales'} 
             onClick={() => setActiveView('sales')} 
           />
           <NavItem 
-            icon={<RefreshCw size={20} />} 
+            icon={<RefreshCw size={18} />} 
             label="Réassort" 
             active={activeView === 'restock'} 
             onClick={() => setActiveView('restock')} 
             badge={restockList.length > 0 ? restockList.length : undefined}
           />
           <NavItem 
-            icon={<History size={20} />} 
+            icon={<History size={18} />} 
             label="Historique" 
             active={activeView === 'history'} 
             onClick={() => setActiveView('history')} 
           />
         </nav>
 
-        <div className="p-4 border-t border-gray-100">
+        <div className="p-4 border-t border-slate-800 mt-auto">
           <button 
             onClick={() => {
               setActiveView('inventory');
               setInventoryFilter('low');
             }}
-            className="w-full text-left p-4 bg-gray-50 rounded-xl hover:bg-red-50 transition-colors group"
+            className="w-full text-left p-4 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-all group"
           >
-            <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-2 group-hover:text-red-400">Statut Stock</p>
+            <p className="text-[10px] text-brand-text-nav font-bold uppercase tracking-widest mb-2 group-hover:text-white">Statut Stock</p>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold group-hover:text-red-700">{lowStockCount} alertes</span>
-              {lowStockCount > 0 && <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
+              <span className="text-sm font-semibold text-slate-300 group-hover:text-white">{lowStockCount} alertes</span>
+              {lowStockCount > 0 && <span className="w-2 h-2 bg-brand-danger rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]" />}
             </div>
           </button>
+          <div className="mt-4 px-2">
+            <p className="text-[10px] text-brand-text-nav font-bold uppercase tracking-widest leading-tight">Utilisateur</p>
+            <p className="text-sm text-slate-300 font-medium truncate">Admin Épicerie</p>
+          </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 ml-64 p-8 overflow-auto">
-        <header className="flex justify-between items-center mb-10">
+      <main className="flex-1 flex flex-col h-full min-w-0">
+        <header className="px-8 py-4 bg-white border-b border-brand-border flex justify-between items-center shrink-0">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="text-lg font-bold tracking-tight text-slate-900">
               {activeView === 'dashboard' && "Tableau de Bord"}
               {activeView === 'inventory' && "Gestion de l'Inventaire"}
               {activeView === 'sales' && "Suivi des Ventes"}
               {activeView === 'restock' && "Prévisions de Réassort"}
               {activeView === 'history' && "Historique de l'Activité"}
             </h1>
-            <p className="text-gray-500 mt-1">Gérez vos stocks et visualisez vos performances.</p>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 mr-4">
-              <button 
-                onClick={() => exportToExcel('day')}
-                className="p-2 text-gray-500 hover:text-black hover:bg-white rounded-lg transition-all flex items-center gap-2 text-xs font-bold"
-                title="Exporter Jour"
-              >
-                <Download size={14} /> Jour
-              </button>
-              <button 
-                onClick={() => exportToExcel('month')}
-                className="p-2 text-gray-500 hover:text-black hover:bg-white rounded-lg transition-all flex items-center gap-2 text-xs font-bold"
-                title="Exporter Mois"
-              >
-                <Download size={14} /> Mois
-              </button>
+            <div className="flex items-center gap-1">
+              {activeView === 'inventory' && (
+                <button 
+                  onClick={() => exportInventoryCsv()}
+                  className="px-3 py-1.5 text-brand-text-muted hover:text-slate-900 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all hover:bg-slate-50 flex items-center gap-1.5 border border-transparent hover:border-brand-border"
+                >
+                  <Download size={14} /> Exporter CSV
+                </button>
+              )}
+              {activeView === 'sales' && (
+                <>
+                  <button 
+                    onClick={() => exportToExcel('day')}
+                    className="px-3 py-1.5 text-brand-text-muted hover:text-slate-900 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all hover:bg-slate-50 flex items-center gap-1.5 border border-transparent hover:border-brand-border"
+                    title="Exporter Jour"
+                  >
+                    <Download size={14} /> Jour
+                  </button>
+                  <button 
+                    onClick={() => exportToExcel('month')}
+                    className="px-3 py-1.5 text-brand-text-muted hover:text-slate-900 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all hover:bg-slate-50 flex items-center gap-1.5 border border-transparent hover:border-brand-border"
+                    title="Exporter Mois"
+                  >
+                    <Download size={14} /> Mois
+                  </button>
+                </>
+              )}
+              {activeView === 'history' && (
+                <button 
+                  onClick={() => exportActivitiesCsv()}
+                  className="px-3 py-1.5 text-brand-text-muted hover:text-slate-900 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all hover:bg-slate-50 flex items-center gap-1.5 border border-transparent hover:border-brand-border"
+                >
+                  <Download size={14} /> Exporter CSV
+                </button>
+              )}
+              {activeView === 'dashboard' && (
+                <div className="flex bg-slate-50 border border-brand-border rounded-lg overflow-hidden divide-x divide-brand-border">
+                  <div className="px-2 py-1.5 flex items-center gap-1.5 shrink-0">
+                    <Download size={12} className="text-brand-text-muted" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-brand-text-muted">Export</span>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      exportInventoryCsv();
+                      exportActivitiesCsv();
+                      exportToExcel('full');
+                    }}
+                    className="px-3 py-1.5 text-slate-600 hover:text-slate-900 text-[10px] font-bold uppercase tracking-widest transition-all hover:bg-white"
+                  >
+                    Au complet
+                  </button>
+                  <button 
+                    onClick={() => {
+                      exportToExcel('day');
+                    }}
+                    className="px-3 py-1.5 text-slate-600 hover:text-slate-900 text-[10px] font-bold uppercase tracking-widest transition-all hover:bg-white"
+                  >
+                    Journée
+                  </button>
+                </div>
+              )}
             </div>
+            <div className="h-6 w-px bg-brand-border mx-1" />
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
               <input 
                 type="text" 
                 placeholder="Rechercher..."
-                className="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-full text-sm focus:ring-2 focus:ring-black outline-none w-64 transition-all"
+                className="pl-9 pr-4 py-2 bg-slate-50 border border-brand-border rounded-lg text-xs focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary outline-none w-48 transition-all"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -182,119 +239,132 @@ export default function App() {
             {activeView === 'inventory' && (
               <button 
                 onClick={() => setShowProductModal(true)}
-                className="bg-black text-white px-5 py-2 rounded-full font-medium flex items-center gap-2 hover:bg-gray-800 transition-colors"
+                className="bg-brand-primary text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-blue-700 transition-all shadow-sm hover:shadow-md active:scale-95"
               >
-                <Plus size={20} />
+                <Plus size={16} />
                 Nouveau Produit
               </button>
             )}
           </div>
         </header>
 
-        <div className="space-y-8">
+        <div className="flex-1 overflow-y-auto p-8 space-y-6">
           {activeView === 'dashboard' && (
             <>
               {/* Stats Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <StatCard 
                   label="Recettes du jour" 
                   value={formatCurrency(todayRevenue)} 
-                  subValue="+12% vs hier" 
+                  subValue="Chiffre d'affaires" 
                   icon={<Banknote className="text-emerald-600" />}
                   color="bg-emerald-50"
                 />
                 <StatCard 
+                  label="Marge Brute" 
+                  value={formatCurrency(todayMargin)} 
+                  subValue="Rentabilité brute" 
+                  icon={<TrendingUp className="text-orange-600" />}
+                  color="bg-orange-50"
+                />
+                <StatCard 
                   label="Ventes aujourd'hui" 
                   value={todaySalesCount} 
-                  subValue="Nombre d'articles vendus" 
+                  subValue="Articles vendus" 
                   icon={<ShoppingCart className="text-blue-600" />}
                   color="bg-blue-50"
                 />
                 <StatCard 
                   label="Alertes Stock" 
                   value={lowStockCount} 
-                  subValue="Produits à réapprovisionner" 
+                  subValue="Réassort requis" 
                   icon={<AlertCircle className="text-red-600" />}
                   color="bg-red-50"
                 />
               </div>
 
               {/* Charts Section */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-                  <h3 className="text-lg font-bold mb-6 italic-serif">Performance des 7 derniers jours</h3>
-                  <div className="h-[300px]">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-6">
+                <div className="bg-white p-6 rounded-xl border border-brand-border shadow-sm">
+                  <h3 className="text-sm font-bold mb-6 italic-serif text-slate-800">Revenue & Marge (7j)</h3>
+                  <div className="h-[250px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={stats}>
                         <defs>
                           <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#2563eb" stopOpacity={0.1}/>
+                            <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                          </linearGradient>
+                          <linearGradient id="colorMargin" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
                             <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F1F1" />
-                        <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#888'}} />
-                        <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#888'}} />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#64748b'}} />
+                        <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#64748b'}} />
                         <Tooltip 
-                          contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} 
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '10px' }} 
                         />
-                        <Area 
-                          type="monotone" 
-                          dataKey="revenue" 
-                          stroke="#10b981" 
-                          strokeWidth={4}
-                          fillOpacity={1} 
-                          fill="url(#colorRev)" 
-                        />
+                        <Area type="monotone" dataKey="revenue" name="Recettes" stroke="#2563eb" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+                        <Area type="monotone" dataKey="margin" name="Marge" stroke="#10b981" strokeWidth={2} strokeDasharray="4 4" fillOpacity={1} fill="url(#colorMargin)" />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
 
-                <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-                  <h3 className="text-lg font-bold mb-6 italic-serif">Volume de vente mensuel</h3>
-                  <div className="h-[300px]">
+                <div className="bg-white p-6 rounded-xl border border-brand-border shadow-sm">
+                  <h3 className="text-sm font-bold mb-6 italic-serif text-slate-800">Volume de vente mensuel</h3>
+                  <div className="h-[250px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={monthlyStats}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F1F1" />
-                        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#888'}} />
-                        <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#888'}} />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#64748b'}} />
+                        <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#64748b'}} />
                         <Tooltip 
-                          contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} 
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '10px' }} 
                         />
-                        <Bar dataKey="volume" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="volume" fill="#2563eb" radius={[4, 4, 0, 0]} barSize={32} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
 
-                <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-                  <h3 className="text-lg font-bold mb-6 italic-serif">Top 5 Produits vendus</h3>
-                  <div className="space-y-4">
+                <div className="bg-white p-6 rounded-xl border border-brand-border shadow-sm">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-sm font-bold italic-serif text-slate-800 uppercase tracking-tight">Top Produits</h3>
+                    <TrendingUp size={16} className="text-slate-400" />
+                  </div>
+                  <div className="space-y-3">
                     {topProducts.map((p, i) => (
-                      <div key={i} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                      <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100/50">
                         <div className="flex items-center gap-3">
-                          <span className="w-8 h-8 flex items-center justify-center bg-black text-white rounded-full text-xs font-bold">{i+1}</span>
+                          <span className="w-6 h-6 flex items-center justify-center bg-brand-sidebar text-white rounded-lg text-[10px] font-bold">{i+1}</span>
                           <div>
-                            <p className="font-bold text-sm">{p.name}</p>
-                            <p className="text-xs text-gray-400">Total: {p.quantity} {p.unit}</p>
+                            <p className="font-bold text-xs text-slate-900">{p.name}</p>
+                            <p className="text-[10px] text-brand-text-muted italic-serif leading-none mt-0.5">Vendu: {p.quantity} {p.unit}</p>
                           </div>
                         </div>
-                        <TrendingUp size={16} className="text-emerald-500" />
+                        <div className="w-8 h-8 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded-full">
+                          <TrendingUp size={14} />
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-                  <h3 className="text-lg font-bold mb-6 italic-serif">Ventes par Catégorie</h3>
-                  <div className="space-y-6">
+                <div className="bg-white p-6 rounded-xl border border-brand-border shadow-sm">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-sm font-bold italic-serif text-slate-800 uppercase tracking-tight">Ventes par Catégorie</h3>
+                    <Box size={16} className="text-slate-400" />
+                  </div>
+                  <div className="space-y-5">
                     {topCategories.map((c, i) => (
                       <CategoryBar 
                         key={i} 
                         label={c.name} 
                         value={Math.round((c.value / (topCategories.reduce((acc, curr) => acc + curr.value, 0) || 1)) * 100)} 
-                        color={i === 0 ? "bg-emerald-500" : i === 1 ? "bg-blue-500" : "bg-orange-500"} 
+                        color={i === 0 ? "bg-brand-primary" : i === 1 ? "bg-brand-accent" : i === 2 ? "bg-brand-warning" : "bg-slate-400"} 
                       />
                     ))}
                   </div>
@@ -304,159 +374,178 @@ export default function App() {
           )}
 
           {activeView === 'inventory' && (
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-               <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-                <div className="flex gap-2">
+            <div className="bg-white rounded-xl border border-brand-border shadow-sm flex flex-col h-full min-h-0 overflow-hidden">
+               <div className="px-6 py-4 border-b border-brand-border bg-slate-50/50 flex justify-between items-center shrink-0">
+                <div className="flex gap-1.5 font-sans">
                   <button 
                     onClick={() => setInventoryFilter('all')}
-                    className={cn("px-3 py-1 rounded-full text-xs font-bold transition-all", inventoryFilter === 'all' ? "bg-black text-white" : "bg-gray-100 text-gray-500")}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", 
+                      inventoryFilter === 'all' ? "bg-slate-900 text-white shadow-sm" : "bg-white text-slate-500 border border-brand-border hover:bg-slate-50"
+                    )}
                   >
                     Tout ({products.length})
                   </button>
                   <button 
                     onClick={() => setInventoryFilter('low')}
-                    className={cn("px-3 py-1 rounded-full text-xs font-bold transition-all", inventoryFilter === 'low' ? "bg-red-500 text-white" : "bg-gray-100 text-gray-500")}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", 
+                      inventoryFilter === 'low' ? "bg-brand-danger text-white shadow-sm" : "bg-white text-slate-500 border border-brand-border hover:bg-slate-50"
+                    )}
                   >
-                    Rupture / Alerte ({lowStockCount})
+                    Alertes ({lowStockCount})
                   </button>
                 </div>
                 {inventoryFilter === 'low' && (
-                  <button onClick={() => setInventoryFilter('all')} className="text-xs text-gray-400 hover:text-black flex items-center gap-1">
-                    <X size={12} /> Effacer le filtre
+                  <button onClick={() => setInventoryFilter('all')} className="text-[10px] font-bold text-slate-400 hover:text-slate-900 flex items-center gap-1 transition-colors">
+                    <X size={12} /> Réinitialiser
                   </button>
                 )}
               </div>
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50/50">
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Produit</th>
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Catégorie</th>
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Prix</th>
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Stock Actuel</th>
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Status</th>
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {products
-                    .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
-                    .filter(p => inventoryFilter === 'all' ? true : p.stock <= p.minStock)
-                    .map(product => (
-                    <tr key={product.id} className="hover:bg-gray-50 transition-colors group">
-                      <td className="px-6 py-4">
-                        <div className="font-semibold text-sm">{product.name}</div>
-                        <div className="text-xs text-gray-400 font-mono uppercase">{product.id}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-xs px-2 py-1 bg-gray-100 rounded-full font-medium">{product.category}</span>
-                      </td>
-                      <td className="px-6 py-4 text-sm font-mono">{formatCurrency(product.price)} / {product.unit}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <span className={cn(
-                            "font-bold text-sm",
-                            product.stock <= product.minStock ? "text-red-600" : "text-gray-900"
-                          )}>{product.stock} {product.unit}</span>
-                          <span className="text-xs text-gray-400">/ min {product.minStock}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        {product.stock <= 0 ? (
-                          <span className="flex items-center gap-1.5 text-xs font-bold text-red-600 uppercase">
-                            <TrendingDown size={14} /> Rupture
-                          </span>
-                        ) : product.stock <= product.minStock ? (
-                          <span className="flex items-center gap-1.5 text-xs font-bold text-orange-500 uppercase">
-                            <AlertCircle size={14} /> Réassort requis
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 uppercase">
-                            <TrendingUp size={14} /> Stable
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button 
-                            onClick={() => {
-                              const qty = window.prompt(`Combien de ${product.name} (${product.unit}) voulez-vous vendre ?`, "1");
-                              if (qty && !isNaN(parseFloat(qty))) recordSale(product.id, parseFloat(qty));
-                            }}
-                            className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                            title="Vendre"
-                          >
-                            <ShoppingCart size={18} />
-                          </button>
-                          <button 
-                            onClick={() => deleteProduct(product.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Supprimer"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      </td>
+              <div className="flex-1 overflow-auto scroll-area">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-brand-border bg-white sticky top-0 z-10 shadow-sm">
+                      <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-brand-text-muted">Produit</th>
+                      <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-brand-text-muted">Catégorie</th>
+                      <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-brand-text-muted">Achat</th>
+                      <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-brand-text-muted">Vente</th>
+                      <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-brand-text-muted text-center">Stock</th>
+                      <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-brand-text-muted">Statut</th>
+                      <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-brand-text-muted text-right">Actions</th>
                     </tr>
-                  ))}
-                  {products.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-gray-400 italic">
-                        Aucun produit en stock. Cliquez sur "Nouveau Produit" pour commencer.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {products
+                      .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .filter(p => inventoryFilter === 'all' ? true : p.stock <= p.minStock)
+                      .map(product => (
+                      <tr key={product.id} className="hover:bg-slate-50/50 transition-colors group">
+                        <td className="px-6 py-4">
+                          <div className="font-bold text-xs text-slate-900">{product.name}</div>
+                          <div className="text-[10px] text-brand-text-nav font-mono uppercase tracking-tight">#{product.id.slice(0, 8)}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-[9px] px-2 py-0.5 bg-slate-100 rounded-md font-black text-slate-500 uppercase tracking-widest border border-slate-200/50">{product.category}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-xs font-bold text-slate-900">{formatCurrency(product.purchasePrice)}</div>
+                          <div className="text-[10px] text-brand-text-muted font-medium italic-serif">/ {product.unit}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-xs font-bold text-brand-primary">{formatCurrency(product.price)}</div>
+                          <div className="text-[10px] text-brand-text-muted font-medium italic-serif">/ {product.unit}</div>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <div className="flex flex-col">
+                            <span className={cn(
+                              "font-black text-xs",
+                              product.stock <= product.minStock ? "text-brand-danger" : "text-slate-900"
+                            )}>
+                              {product.stock} <span className="text-[10px] font-medium text-brand-text-muted lowercase">{product.unit}</span>
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          {product.stock <= 0 ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tight bg-red-50 text-brand-danger border border-red-100/50">
+                              <TrendingDown size={10} /> Rupture
+                            </span>
+                          ) : product.stock <= product.minStock ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tight bg-orange-50 text-brand-warning border border-orange-100/50">
+                              <AlertCircle size={10} /> Réassort
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tight bg-emerald-50 text-brand-accent border border-emerald-100/50">
+                              <TrendingUp size={10} /> Stable
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end gap-1 group-hover:opacity-100 transition-opacity">
+                            <button 
+                              onClick={() => {
+                                const qty = window.prompt(`Réapprovisionner ${product.name} ? (quantité en ${product.unit})`, "10");
+                                if (qty && !isNaN(parseFloat(qty))) restockProduct(product.id, parseFloat(qty));
+                              }}
+                              className="p-1.5 text-brand-accent hover:bg-emerald-50 rounded-lg transition-all flex items-center gap-1 bg-emerald-50/30"
+                              title="Réassort"
+                            >
+                              <Archive size={14} />
+                              <span className="text-[10px] font-bold uppercase">Réassort</span>
+                            </button>
+                            <button 
+                              onClick={() => {
+                                const qty = window.prompt(`Quantité à vendre de ${product.name} ?`, "1");
+                                if (qty && !isNaN(parseFloat(qty))) recordSale(product.id, parseFloat(qty));
+                              }}
+                              className="p-1.5 text-brand-primary hover:bg-brand-primary/10 rounded-lg transition-colors border border-transparent"
+                              title="Vendre"
+                            >
+                              <Plus size={14} />
+                            </button>
+                            <button 
+                              onClick={() => deleteProduct(product.id)}
+                              className="p-1.5 text-brand-danger hover:bg-brand-danger/10 rounded-lg transition-colors pl-2"
+                              title="Supprimer"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
           {activeView === 'sales' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full min-h-0">
               {/* Sales List */}
-              <div className="lg:col-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-lg">Dernières Ventes</h3>
-                    <span className="text-xs bg-gray-100 px-2 py-1 rounded-lg text-gray-500 font-bold">{sales.length} ventes</span>
+              <div className="lg:col-span-2 bg-white rounded-xl border border-brand-border shadow-sm overflow-hidden flex flex-col min-h-0">
+                <div className="px-6 py-4 border-b border-brand-border flex justify-between items-center bg-slate-50/20 shrink-0">
+                  <div className="flex items-center gap-2 font-sans">
+                    <h3 className="font-bold text-sm text-slate-800">Journal des Ventes</h3>
+                    <span className="text-[9px] bg-slate-100 px-2 py-0.5 rounded-md text-brand-text-muted font-black tracking-widest border border-slate-200/50 uppercase">{sales.length} VENTES</span>
                   </div>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="flex-1 overflow-auto scroll-area">
                   <table className="w-full text-left border-collapse">
-                    <thead className="bg-gray-50/50">
+                    <thead className="bg-white sticky top-0 z-10 shadow-sm">
                       <tr>
-                        <th className="px-6 py-4 text-xs font-semibold uppercase text-gray-500">Date & Heure</th>
-                        <th className="px-6 py-4 text-xs font-semibold uppercase text-gray-500">Produit</th>
-                        <th className="px-6 py-4 text-xs font-semibold uppercase text-gray-500">Qté</th>
-                        <th className="px-6 py-4 text-xs font-semibold uppercase text-gray-500">Total</th>
-                        <th className="px-6 py-4 text-xs font-semibold uppercase text-gray-500">Statut</th>
-                        <th className="px-6 py-4 text-xs font-semibold uppercase text-gray-500 text-right">Action</th>
+                        <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-brand-text-muted">Date</th>
+                        <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-brand-text-muted">Produit</th>
+                        <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-brand-text-muted text-center">Qté</th>
+                        <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-brand-text-muted text-right">Total</th>
+                        <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-brand-text-muted text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-slate-50">
                       {[...sales].reverse().map(sale => (
-                        <tr key={sale.id} className={cn("text-sm", sale.cancelled && "opacity-50 grayscale")}>
-                          <td className="px-6 py-4 text-gray-500 font-mono">
+                        <tr key={sale.id} className={cn("text-xs transition-colors hover:bg-slate-50/30 group", sale.cancelled && "opacity-40 grayscale italic line-through")}>
+                          <td className="px-6 py-4 text-brand-text-muted font-mono leading-tight text-[10px]">
                             {new Date(sale.date).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                           </td>
-                          <td className="px-6 py-4 font-semibold">{sale.productName}</td>
-                          <td className="px-6 py-4 font-mono">{sale.quantity}{sale.unit}</td>
-                          <td className="px-6 py-4 font-bold">{formatCurrency(sale.totalAmount)}</td>
                           <td className="px-6 py-4">
-                            {sale.cancelled ? (
-                              <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-black uppercase">Annulé</span>
-                            ) : (
-                              <span className="text-[10px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full font-black uppercase">Validé</span>
-                            )}
+                            <span className="font-bold text-slate-900">{sale.productName}</span>
                           </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="font-bold text-slate-700">{sale.quantity}</span>
+                            <span className="text-[9px] text-brand-text-muted uppercase ml-1">{sale.unit}</span>
+                          </td>
+                          <td className="px-6 py-4 font-black text-slate-900 text-right">{formatCurrency(sale.totalAmount)}</td>
                           <td className="px-6 py-4 text-right">
-                            {!sale.cancelled && (
+                            {!sale.cancelled ? (
                               <button 
                                 onClick={() => cancelSale(sale.id)}
-                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Annuler la vente"
+                                className="p-1.5 text-slate-300 hover:text-brand-danger hover:bg-brand-danger/10 rounded-lg transition-all"
                               >
-                                <RotateCcw size={16} />
+                                <RotateCcw size={14} />
                               </button>
+                            ) : (
+                              <span className="text-[9px] font-black text-brand-danger uppercase tracking-tighter">ANNULÉ</span>
                             )}
                           </td>
                         </tr>
@@ -467,29 +556,56 @@ export default function App() {
               </div>
 
               {/* Sales Stats Sidebar */}
-              <div className="space-y-6">
-                <div className="bg-black text-white p-6 rounded-3xl shadow-xl">
-                  <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-4">Résumé Recettes</h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-end">
-                      <div>
-                        <p className="text-3xl font-light">{formatCurrency(todayRevenue)}</p>
-                        <p className="text-xs text-emerald-400 font-medium">Aujourd'hui</p>
+              <div className="space-y-6 flex flex-col shrink-0">
+                <div className="bg-brand-sidebar text-white p-6 rounded-xl shadow-xl relative overflow-hidden shrink-0 border border-slate-700">
+                  <div className="relative z-10">
+                    <h3 className="text-brand-text-nav text-[10px] font-bold uppercase tracking-widest mb-4">Mois en cours</h3>
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-end">
+                        <div className="flex flex-col">
+                          <p className="text-2xl font-black tracking-tight">{formatCurrency(todayRevenue)}</p>
+                          <p className="text-[9px] text-brand-accent font-black tracking-widest uppercase mt-1">Recettes Total</p>
+                        </div>
+                        <Banknote size={24} className="opacity-20 translate-y-1" />
                       </div>
-                      <Banknote size={32} className="opacity-20 translate-y-1" />
-                    </div>
-                    <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-emerald-500" style={{ width: '75%' }} />
+
+                      <div className="pt-4 border-t border-slate-700">
+                        <div className="flex justify-between items-end">
+                          <div className="flex flex-col">
+                            <p className="text-xl font-bold text-orange-400 tracking-tight">{formatCurrency(monthlyExpenses)}</p>
+                            <p className="text-[9px] text-orange-200/50 font-black tracking-widest uppercase mt-1">Total Dépenses (Réassort)</p>
+                          </div>
+                          <TrendingDown size={20} className="text-orange-400 opacity-40 shrink-0" />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 pt-2">
+                        <div className="flex justify-between text-[8px] font-black text-brand-text-nav uppercase tracking-tighter">
+                          <span>Objectif Hebdo</span>
+                          <span>{Math.min(100, Math.round((todayRevenue / 50000) * 100))}%</span>
+                        </div>
+                        <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                          <div className="h-full bg-brand-accent shadow-[0_0_8px_rgba(16,185,129,0.4)] transition-all duration-1000" style={{ width: `${Math.min(100, (todayRevenue / 50000) * 100)}%` }} />
+                        </div>
+                      </div>
                     </div>
                   </div>
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-brand-primary opacity-10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl scale-150" />
                 </div>
 
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                  <h4 className="font-bold mb-4 italic-serif">Top Catégories</h4>
-                  <div className="space-y-3">
-                    <CategoryBar label="Électronique" value={65} color="bg-blue-500" />
-                    <CategoryBar label="Vêtements" value={45} color="bg-purple-500" />
-                    <CategoryBar label="Alimentation" value={30} color="bg-orange-500" />
+                <div className="bg-white p-5 rounded-xl border border-brand-border shadow-sm flex flex-col shrink-0">
+                  <h4 className="font-black text-[10px] mb-6 italic-serif uppercase tracking-widest text-slate-800 flex items-center justify-between">
+                    Top Catégories <TrendingUp size={12} className="text-brand-accent" />
+                  </h4>
+                  <div className="space-y-5">
+                    {topCategories.map((c, i) => (
+                      <CategoryBar 
+                        key={i} 
+                        label={c.name} 
+                        value={Math.round((c.value / (topCategories.reduce((acc, curr) => acc + curr.value, 0) || 1)) * 100)} 
+                        color={i === 0 ? "bg-brand-primary" : i === 1 ? "bg-brand-accent" : "bg-brand-warning"} 
+                      />
+                    ))}
                   </div>
                 </div>
               </div>
@@ -497,107 +613,107 @@ export default function App() {
           )}
 
           {activeView === 'restock' && (
-            <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-              <div className="flex items-center gap-3 mb-8">
-                <RefreshCw className="text-blue-600" />
-                <h3 className="text-xl font-bold italic-serif">Liste de Réassort Hebdomadaire Suggérée</h3>
+            <div className="bg-white p-6 rounded-xl border border-brand-border shadow-sm flex flex-col h-full min-h-0 overflow-hidden shrink-0">
+              <div className="flex items-center gap-3 mb-8 shrink-0">
+                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-brand-primary border border-blue-100/50">
+                  <RefreshCw size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold italic-serif text-slate-900 leading-tight">Suggestions de Réassort</h3>
+                  <p className="text-[10px] text-brand-text-muted font-black uppercase tracking-widest mt-1 italic opacity-70">Basé sur les ventes des 7 derniers jours</p>
+                </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {restockList.map(item => (
-                  <div key={item.id} className="p-6 rounded-2xl border border-gray-100 bg-gray-50/30 hover:border-blue-200 transition-all flex flex-col justify-between">
-                    <div>
-                      <div className="flex justify-between items-start mb-4">
-                        <h4 className="font-bold text-lg">{item.name}</h4>
-                        <span className="text-xs font-mono px-2 py-1 bg-blue-50 text-blue-600 rounded-lg">ID: {item.id}</span>
+              <div className="flex-1 overflow-auto scroll-area">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-4">
+                  {restockList.map(item => (
+                    <div key={item.id} className="p-5 rounded-xl border border-brand-border bg-slate-50/20 hover:bg-white hover:border-brand-primary/30 transition-all flex flex-col justify-between group">
+                      <div>
+                        <div className="flex justify-between items-start mb-4">
+                          <h4 className="font-bold text-xs text-slate-900">{item.name}</h4>
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 bg-white border border-brand-border text-brand-text-muted rounded-md uppercase tracking-tighter">#{item.id.slice(0, 5)}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-sm mb-5">
+                          <div className="p-3 bg-white rounded-lg border border-slate-100 flex flex-col items-center">
+                            <p className="text-brand-text-muted text-[8px] uppercase font-black mb-1 tracking-widest">Ventes Hebdo</p>
+                            <p className="text-xs font-black text-slate-800">{item.avgWeeklySales} <span className="text-[9px] font-medium lowercase italic-serif">u.</span></p>
+                          </div>
+                          <div className="p-3 bg-white rounded-lg border border-slate-100 flex flex-col items-center">
+                            <p className="text-brand-text-muted text-[8px] uppercase font-black mb-1 tracking-widest">Stock</p>
+                            <p className={cn("text-xs font-black", item.stock <= item.minStock ? "text-brand-danger" : "text-slate-800")}>
+                              {item.stock} <span className="text-[9px] font-medium lowercase italic-serif">u.</span>
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-4 text-sm mb-6">
-                        <div className="p-3 bg-white rounded-xl border border-gray-100">
-                          <p className="text-gray-400 text-[10px] uppercase font-bold mb-1">Ventes Hebdo</p>
-                          <p className="text-lg font-bold">{item.avgWeeklySales} unités</p>
+                      
+                      <div className="pt-4 border-t border-slate-100/60">
+                        <div className="flex items-center justify-between text-brand-primary mb-3">
+                          <span className="text-[9px] font-black uppercase tracking-widest italic">Suggéré</span>
+                          <span className="text-xl font-black tracking-tighter">+{item.suggestion}</span>
                         </div>
-                        <div className="p-3 bg-white rounded-xl border border-gray-100">
-                          <p className="text-gray-400 text-[10px] uppercase font-bold mb-1">Stock Actuel</p>
-                          <p className={cn("text-lg font-bold", item.stock <= item.minStock ? "text-red-500" : "text-gray-900")}>
-                            {item.stock} u.
-                          </p>
-                        </div>
+                        <button 
+                          onClick={() => {
+                            const qty = window.prompt(`Réception de stock pour ${item.name}. Quantité :`, item.suggestion.toString());
+                            if (qty && !isNaN(parseInt(qty))) updateProduct(item.id, { stock: item.stock + parseInt(qty) });
+                          }}
+                          className="w-full bg-brand-primary text-white py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all active:scale-[0.98] shadow-sm"
+                        >
+                          Réceptionner
+                        </button>
                       </div>
                     </div>
-                    
-                    <div className="pt-4 border-t border-gray-100">
-                      <div className="flex items-center justify-between text-blue-700">
-                        <span className="text-xs font-bold uppercase tracking-wider">Quantité Suggérée</span>
-                        <span className="text-3xl font-black">+{item.suggestion} {item.unit}</span>
+                  ))}
+                  {restockList.length === 0 && (
+                    <div className="col-span-full py-20 text-center shrink-0">
+                      <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shrink-0 border border-emerald-100 shadow-sm">
+                        <TrendingUp size={24} />
                       </div>
-                      <p className="text-[10px] text-blue-400 mt-1 italic">Basé sur la moyenne hebdomadaire + 20% de marge de sécurité.</p>
-                      <button 
-                        onClick={() => {
-                          const qty = window.prompt(`Réception de stock pour ${item.name}. Quantité :`, item.suggestion.toString());
-                          if (qty && !isNaN(parseInt(qty))) updateProduct(item.id, { stock: item.stock + parseInt(qty) });
-                        }}
-                        className="w-full mt-4 bg-blue-600 text-white py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors"
-                      >
-                        Valider Réception
-                      </button>
+                      <p className="text-[11px] font-black text-brand-text-nav uppercase tracking-[0.2em] italic leading-relaxed">Stock optimal.<br/>Tout est sous contrôle.</p>
                     </div>
-                  </div>
-                ))}
-                {restockList.length === 0 && (
-                  <div className="col-span-full py-20 text-center text-gray-400">
-                    <Box size={48} className="mx-auto mb-4 opacity-10" />
-                    <p>Le stock est optimal. Aucune suggestion de réassort pour le moment.</p>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           )}
 
           {activeView === 'history' && (
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-               <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+            <div className="bg-white rounded-xl border border-brand-border shadow-sm flex flex-col h-full min-h-0 overflow-hidden shrink-0">
+               <div className="px-6 py-4 border-b border-brand-border bg-slate-50/50 flex justify-between items-center shrink-0">
                 <div className="flex items-center gap-2">
-                  <Archive className="text-gray-400" size={18} />
-                  <h3 className="font-bold italic-serif">Archives par année</h3>
+                  <Archive className="text-slate-400" size={16} />
+                  <h3 className="font-bold italic-serif text-sm text-slate-800 tracking-tight">Archives Journalières</h3>
                 </div>
-                <div className="flex gap-2">
-                  {[2024, 2025, 2026].map(year => (
-                    <button 
-                      key={year}
-                      className={cn(
-                        "px-3 py-1 rounded-full text-xs font-bold transition-all", 
-                        new Date().getFullYear() === year ? "bg-black text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                      )}
-                    >
-                      {year}
-                    </button>
-                  ))}
+                <div className="flex gap-1.5">
+                  <button className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-slate-900 text-white shadow-sm border border-slate-900">2026</button>
+                  <button className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-white text-slate-400 border border-brand-border hover:bg-slate-50">2025</button>
                 </div>
               </div>
-              <div className="divide-y divide-gray-50 max-h-[600px] overflow-y-auto">
+              <div className="flex-1 overflow-y-auto divide-y divide-slate-50 scroll-area shrink-0">
                 {activities.map(activity => (
-                  <div key={activity.id} className="p-6 hover:bg-gray-50 transition-colors flex items-center gap-6">
+                  <div key={activity.id} className="p-4 hover:bg-slate-50/50 transition-all flex items-center gap-4 group">
                     <div className={cn(
-                      "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm",
-                      activity.type === 'SALE' ? "bg-emerald-50 text-emerald-600" :
-                      activity.type === 'CANCEL_SALE' ? "bg-red-50 text-red-600" :
-                      activity.type === 'ADD_PRODUCT' ? "bg-blue-50 text-blue-600" :
-                      "bg-gray-50 text-gray-400"
+                      "w-9 h-9 rounded-lg flex items-center justify-center shrink-0 shadow-sm border transition-transform duration-200 group-hover:scale-105",
+                      activity.type === 'SALE' ? "bg-emerald-50 text-brand-accent border-emerald-100" :
+                      activity.type === 'CANCEL_SALE' ? "bg-red-50 text-brand-danger border-red-100" :
+                      activity.type === 'ADD_PRODUCT' ? "bg-blue-50 text-brand-primary border-blue-100" :
+                      "bg-slate-50 text-slate-400 border-slate-100"
                     )}>
-                      {activity.type === 'SALE' && <ShoppingCart size={22} />}
-                      {activity.type === 'CANCEL_SALE' && <RotateCcw size={22} />}
-                      {activity.type === 'ADD_PRODUCT' && <Plus size={22} />}
-                      {activity.type === 'EDIT_PRODUCT' && <Package size={22} />}
-                      {activity.type === 'DELETE_PRODUCT' && <Trash2 size={22} />}
+                      {activity.type === 'SALE' && <ShoppingCart size={16} />}
+                      {activity.type === 'CANCEL_SALE' && <RotateCcw size={16} />}
+                      {activity.type === 'ADD_PRODUCT' && <Plus size={16} />}
+                      {activity.type === 'EDIT_PRODUCT' && <Package size={16} />}
+                      {activity.type === 'DELETE_PRODUCT' && <Trash2 size={16} />}
                     </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-sm text-gray-900">{activity.description}</p>
-                      <p className="text-[11px] text-gray-400 font-mono mt-0.5">
-                        {new Date(activity.date).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'})}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-xs text-slate-900 group-hover:text-brand-primary transition-colors truncate">{activity.description}</p>
+                      <p className="text-[10px] text-brand-text-muted font-medium mt-0.5 flex items-center gap-2 uppercase tracking-tight">
+                        <Clock size={10} className="shrink-0 text-slate-300" />
+                        {new Date(activity.date).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'})}
                       </p>
                     </div>
-                    <div className="text-[10px] font-black uppercase tracking-widest text-gray-300">
-                      #{activity.id}
+                    <div className="shrink-0 text-[9px] font-mono px-2 py-1 bg-slate-50 border border-slate-100 rounded-md text-brand-text-nav font-bold opacity-40 group-hover:opacity-100 transition-opacity">
+                      #{activity.id.slice(0, 4)}
                     </div>
                   </div>
                 ))}
@@ -610,28 +726,28 @@ export default function App() {
       {/* Product Modal */}
       <AnimatePresence>
         {showProductModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-hidden">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowProductModal(false)}
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm" 
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]" 
             />
             <motion.div 
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              initial={{ scale: 0.98, opacity: 0, y: 10 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="relative bg-white w-full max-w-lg rounded-[32px] shadow-2xl overflow-hidden overflow-y-auto max-h-[90vh]"
+              exit={{ scale: 0.98, opacity: 0, y: 10 }}
+              className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl border border-brand-border overflow-hidden"
             >
-              <div className="p-8">
-                <div className="flex justify-between items-center mb-8">
-                  <h2 className="text-2xl font-bold tracking-tight">Ajouter un produit</h2>
-                  <button onClick={() => setShowProductModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400">
-                    <X size={24} />
-                  </button>
-                </div>
-                
+              <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/20">
+                <h2 className="text-sm font-bold tracking-tight italic-serif text-slate-800">Ajouter un produit</h2>
+                <button onClick={() => setShowProductModal(false)} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-400">
+                  <X size={18} />
+                </button>
+              </div>
+              
+              <div className="p-6 overflow-y-auto max-h-[80vh]">
                 <form 
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -640,20 +756,21 @@ export default function App() {
                       name: formData.get('name') as string,
                       category: formData.get('category') as any,
                       unit: formData.get('unit') as any,
+                      purchasePrice: parseFloat(formData.get('purchasePrice') as string),
                       price: parseFloat(formData.get('price') as string),
                       stock: parseFloat(formData.get('stock') as string),
                       minStock: parseFloat(formData.get('minStock') as string),
                     });
                     setShowProductModal(false);
                   }}
-                  className="space-y-5"
+                  className="space-y-4"
                 >
                   <InputGroup label="Nom du produit" name="name" placeholder="ex: Riz Long Grain" required />
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold uppercase tracking-wider text-gray-500 pl-1">Catégorie</label>
-                      <select name="category" className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-black focus:bg-white transition-all text-sm font-medium">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-brand-text-muted pl-1">Catégorie</label>
+                      <select name="category" className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-lg outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all text-xs font-bold text-slate-700">
                         <option value="épicerie">Épicerie</option>
                         <option value="alimentaire">Alimentaire</option>
                         <option value="non alimentaire">Non alimentaire</option>
@@ -661,8 +778,8 @@ export default function App() {
                       </select>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold uppercase tracking-wider text-gray-500 pl-1">Unité</label>
-                      <select name="unit" className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-black focus:bg-white transition-all text-sm font-medium">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-brand-text-muted pl-1">Unité</label>
+                      <select name="unit" className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-lg outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all text-xs font-bold text-slate-700">
                         <option value="u">Pièce (u)</option>
                         <option value="kg">Kilo (kg)</option>
                         <option value="L">Litre (L)</option>
@@ -673,13 +790,16 @@ export default function App() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <InputGroup label="Prix (Ar)" name="price" type="number" step="1" placeholder="2500" required />
-                    <InputGroup label="Stock initial" name="stock" type="number" step="0.001" placeholder="10" required />
+                    <InputGroup label="Prix d'achat (Ar)" name="purchasePrice" type="number" step="1" placeholder="1800" required />
+                    <InputGroup label="Prix de vente (Ar)" name="price" type="number" step="1" placeholder="2500" required />
                   </div>
-                  <InputGroup label="Alerte Stock Minimal" name="minStock" type="number" step="0.001" placeholder="5" required />
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputGroup label="Stock initial" name="stock" type="number" step="0.001" placeholder="10" required />
+                    <InputGroup label="Stock Minimal" name="minStock" type="number" step="0.001" placeholder="5" required />
+                  </div>
                   
-                  <div className="pt-6">
-                    <button className="w-full bg-black text-white font-bold py-4 rounded-2xl hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl active:scale-[0.98]">
+                  <div className="pt-4">
+                    <button className="w-full bg-brand-primary text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-brand-primary/20 active:scale-[0.98] text-xs uppercase tracking-widest">
                       Créer le produit
                     </button>
                   </div>
@@ -705,18 +825,18 @@ function NavItem({ icon, label, active, onClick, badge }: { icon: React.ReactNod
     <button 
       onClick={onClick}
       className={cn(
-        "w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group",
-        active ? "bg-black text-white shadow-lg shadow-black/10" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+        "w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 group",
+        active ? "bg-slate-800 text-white shadow-sm" : "text-brand-text-nav hover:bg-slate-800/30 hover:text-slate-200"
       )}
     >
       <div className="flex items-center gap-3">
-        <span className={cn("transition-transform duration-200", active ? "scale-110" : "group-hover:scale-110")}>{icon}</span>
-        <span className="font-semibold text-sm">{label}</span>
+        <span className={cn("transition-transform duration-200", active ? "scale-110" : "group-hover:scale-110 text-brand-text-nav")}>{icon}</span>
+        <span className="font-medium text-xs tracking-tight">{label}</span>
       </div>
       {badge !== undefined && (
         <span className={cn(
-          "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
-          active ? "bg-white/20 text-white" : "bg-red-100 text-red-600"
+          "text-[10px] font-black px-1.5 py-0.5 rounded-full",
+          active ? "bg-brand-primary text-white" : "bg-brand-danger text-white"
         )}>
           {badge}
         </span>
@@ -727,28 +847,36 @@ function NavItem({ icon, label, active, onClick, badge }: { icon: React.ReactNod
 
 function StatCard({ label, value, subValue, icon, color }: { label: string, value: string | number, subValue: string, icon: React.ReactNode, color: string }) {
   return (
-    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-      <div className={cn("absolute top-0 right-0 p-4 rounded-bl-3xl translate-x-1 translate-y--1", color)}>
+    <div className="bg-white p-4 rounded-xl border border-brand-border shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+      <div className={cn("absolute top-0 right-0 p-3 rounded-bl-xl translate-x-0.5 translate-y--0.5", color)}>
         {icon}
       </div>
       <div>
-        <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">{label}</p>
-        <p className="text-3xl font-black tracking-tight mb-2">{value}</p>
-        <p className="text-xs text-gray-400 font-medium">{subValue}</p>
+        <p className="text-brand-text-muted text-[10px] font-bold uppercase tracking-widest mb-1.5">{label}</p>
+        <p className="text-xl font-black tracking-tight mb-2 text-slate-900">{value}</p>
+        <p className="text-[10px] text-brand-text-muted font-medium flex items-center gap-1">
+          {subValue}
+        </p>
       </div>
-      <div className="absolute bottom-0 left-0 h-1 bg-black/5 w-full group-hover:bg-black/10 transition-colors" />
     </div>
   );
 }
 
-function CategoryBar({ label, value, color }: { label: string, value: number, color: string }) {
+interface CategoryBarProps {
+  label: string;
+  value: number;
+  color: string;
+  key?: any;
+}
+
+function CategoryBar({ label, value, color }: CategoryBarProps) {
   return (
     <div className="space-y-1.5">
-      <div className="flex justify-between text-xs font-bold">
-        <span className="text-gray-600">{label}</span>
-        <span className="text-gray-400">{value}%</span>
+      <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
+        <span className="text-brand-text-muted">{label}</span>
+        <span className="text-slate-900">{value}%</span>
       </div>
-      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+      <div className="h-1 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
         <div className={cn("h-full rounded-full transition-all duration-1000", color)} style={{ width: `${value}%` }} />
       </div>
     </div>
@@ -758,10 +886,10 @@ function CategoryBar({ label, value, color }: { label: string, value: number, co
 function InputGroup({ label, ...props }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <div className="space-y-1.5">
-      <label className="text-xs font-bold uppercase tracking-wider text-gray-500 pl-1">{label}</label>
+      <label className="text-[10px] font-bold uppercase tracking-wider text-brand-text-muted pl-1">{label}</label>
       <input 
         {...props}
-        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-black focus:bg-white transition-all text-sm font-medium"
+        className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-lg outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
       />
     </div>
   );

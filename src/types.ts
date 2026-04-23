@@ -11,6 +11,7 @@ export interface Product {
   name: string;
   category: Category;
   unit: Unit;
+  purchasePrice: number;
   price: number;
   stock: number;
   minStock: number;
@@ -23,8 +24,10 @@ export interface Sale {
   productName: string;
   quantity: number;
   unit: Unit;
+  purchasePriceAtSale: number;
   priceAtSale: number;
   totalAmount: number;
+  totalMargin: number;
   date: string;
   cancelled: boolean;
 }
@@ -34,7 +37,18 @@ export type ActivityType =
   | 'EDIT_PRODUCT' 
   | 'DELETE_PRODUCT' 
   | 'SALE' 
-  | 'CANCEL_SALE';
+  | 'CANCEL_SALE'
+  | 'RESTOCK';
+
+export interface Restock {
+  id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  purchasePriceAtRestock: number;
+  totalCost: number;
+  date: string;
+}
 
 export interface Activity {
   id: string;
